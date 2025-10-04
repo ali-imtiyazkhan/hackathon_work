@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  name         String
+  email        String         @unique
+  password     String
+  roleId       Int
+  managerId    Int?
+  companyId    Int
+  approvals    Approval[]
+  ApprovalStep ApprovalStep[]
+  expenses     Expense[]
+  company      Company        @relation(fields: [companyId], references: [id])
+  manager      User?          @relation("UserManager", fields: [managerId], references: [id])
+  subordinates User[]         @relation("UserManager")
+  role         Role           @relation(fields: [roleId], references: [id])
+}
+
+model Company {
+  id            Int            @id @default(autoincrement())
+  name          String
+  currency      String
+  approvalFlows ApprovalFlow[]
+  users         User[]
+}
+
+model Expense {
+  id           Int           @id @default(autoincrement())
+  amount       Float
+  currency     String
+  convertedAmt Float
+  category     String
+  description  String
+  date         DateTime
+  receiptUrl   String?
+  employeeId   Int
+  status       ExpenseStatus @default(PENDING)
+  approvals    Approval[]
+  employee     User          @relation(fields: [employeeId], references: [id])
+}
+
+model ApprovalFlow {
+  id        Int            @id @default(autoincrement())
+  companyId Int
+  name      String
+  company   Company        @relation(fields: [companyId], references: [id])
+  rules     ApprovalRule?
+  steps     ApprovalStep[]
+}
+
+model ApprovalStep {
+  id         Int          @id @default(autoincrement())
+  flowId     Int
+  sequence   Int
+  approverId Int
+  approver   User         @relation(fields: [approverId], references: [id])
+  flow       ApprovalFlow @relation(fields: [flowId], references: [id])
+}
+
+model Approval {
+  id         Int              @id @default(autoincrement())
+  expenseId  Int
+  approverId Int
+  decision   ApprovalDecision
+  comment    String?
+  createdAt  DateTime         @default(now())
+  approver   User             @relation(fields: [approverId], references: [id])
+  expense    Expense          @relation(fields: [expenseId], references: [id])
+}
+
+model ApprovalRule {
+  id            Int          @id @default(autoincrement())
+  flowId        Int          @unique
+  percentage    Int?
+  mustIncludeId Int?
+  flow          ApprovalFlow @relation(fields: [flowId], references: [id])
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  PENDING
+}
